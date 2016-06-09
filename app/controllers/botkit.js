@@ -2,6 +2,7 @@
 
 /* Uses the slack button feature to offer a real time bot to multiple teams */
 var Botkit = require('botkit');
+var request = require('request');
 var mongoUri = process.env.MONGOLAB_URI || 'mongodb://localhost/botkit_express_demo'
 var botkit_mongo_storage = require('../../config/botkit-storage-mongoose')({mongoUri: mongoUri})
 
@@ -103,6 +104,39 @@ controller.on('direct_message,mention,direct_mention',function(bot,message) {
         if (err) { console.log(err) }
         bot.reply(message,'I heard you loud and clear boss.');
     });
+});
+
+//ECHO BOT ====================================================================
+
+// Calls a specified Slack incoming webhook.
+function callIncomingWebhook(webhookId, messageText, teamName) {
+
+  var usernameForMessage = ('Someone from the ' + teamName + ' team');
+  var options = {
+      url: 'https://hooks.slack.com/services/' + webhookId,
+      method: 'POST',
+      body: '{"username": "' + usernameForMessage + '", "text": "'+ messageText + '", "icon_emoji": ":ghost:"}'
+  };
+
+  function callback(error, response, body) {
+      console.log(response.statusCode);
+      console.log(body);
+      if (!error && response.statusCode == 200) {
+          console.log(body);
+      }
+  }
+
+  request(options, callback);
+}
+
+controller.hears([".+","^pattern$"],["direct_message","direct_mention","mention","ambient"],function(bot,message) {
+  // do something to respond to message
+  // all of the fields available in a normal Slack message object are available
+  // https://api.slack.com/events/message
+
+  callIncomingWebhook('T0GB1QT2A/B1FH6FNR4/XuBY0iEHYmJPIZYZbctvYTFL', message.text, bot.team_info.name);
+
+  //bot.reply(message,'You have been echoed!');
 });
 
 controller.storage.teams.all(function(err,teams) {
