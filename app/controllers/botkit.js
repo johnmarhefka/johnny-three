@@ -3,6 +3,8 @@
 /* Uses the slack button feature to offer a real time bot to multiple teams */
 var Botkit = require('botkit');
 var request = require('request');
+var Slack = require('slack-node');  
+    var apiToken = "xoxp-16377691796-49529030913-49665726773-a795028452";
 var mongoUri = process.env.MONGOLAB_URI || 'mongodb://localhost/botkit_express_demo'
 var botkit_mongo_storage = require('../../config/botkit-storage-mongoose')({mongoUri: mongoUri})
 
@@ -129,15 +131,77 @@ function callIncomingWebhook(webhookId, messageText, teamName) {
   request(options, callback);
 }
 
+function callIncomingWebHookSean(webhookId, messageText, userObject, teamName) {
+    console.log(userObject);
+    var usernameForMessage = (userObject.real_name == '' ? userObject.name : userObject.real_name);
+    usernameForMessage = usernameForMessage + ' (from ' + teamName + ')';
+    var options = {
+        url: 'https://hooks.slack.com/services/' + webhookId,
+        method: 'POST',
+        body: '{"username": "' + usernameForMessage + '", "text": "'+ messageText + '", "icon_url": "' + userObject.profile.image_32 +'"}'
+    };
+
+    function callback(error, response, body) {
+        console.log(response.statusCode);
+        console.log(body);
+        if (!error && response.statusCode == 200) {
+            console.log(body);
+        }
+    }
+
+    request(options, callback);
+}
+
+function incomingHookFor(channelId) {
+    // channelId is TeamName.ChannelName
+    var checkArray = new Array();
+    //From PortalWatchers.Random to AgeOfSlacktron.Random
+    checkArray['T0GB3LBPE.C0GB6ABCK'] = 'T0GB1QT2A/B1FH6FNR4/XuBY0iEHYmJPIZYZbctvYTFL';
+    //From AgeOfSlacktron.Random to PortalWatchers.Random
+    checkArray['T0GB1QT2A.C0GAXFS4D'] = 'T0GB1QT2A/B1FMRLKDM/1IgEh4NcOFK6Nz0PFh2eaqEF'
+    return checkArray[channelId];
+}
+
 controller.hears([".+","^pattern$"],["direct_message","direct_mention","mention","ambient"],function(bot,message) {
   // do something to respond to message
   // all of the fields available in a normal Slack message object are available
   // https://api.slack.com/events/message
 
-  callIncomingWebhook('T0GB1QT2A/B1FH6FNR4/XuBY0iEHYmJPIZYZbctvYTFL', message.text, bot.team_info.name);
+
+//SEAN
+
+console.log('START');
+console.log(message);
+//This is a call to the info list for the user for the message.  We are doing the actual echoing in here
+// so that we don't get screwed by async stuff
+bot.api.users.info({
+    user: message.user,
+    token: bot.config.token
+}, function(err, result) {
+    if (message.subtype != 'bot_message') {
+        console.log(result.user);
+        callIncomingWebHookSean(incomingHookFor(message.team + '.' + message.channel), message.text, result.user, bot.team_info.name)
+        //'T0GB1QT2A/B1FH6FNR4/XuBY0iEHYmJPIZYZbctvYTFL'
+    }
+});
+console.log('END')
+
+
+//END SEAN
+
+//This is the line that echoes the statement.  The first argument is the ID for the team/channel.
+//if (message.subtype != 'bot_message') {
+//  callIncomingWebhook('T0GB1QT2A/B1FH6FNR4/XuBY0iEHYmJPIZYZbctvYTFL', message.text, bot.team_info.name);
+//}
 
   //bot.reply(message,'You have been echoed!');
 });
+
+function getSpeaker(bot, userid) {
+
+}
+
+//END ECHO BOT
 
 controller.storage.teams.all(function(err,teams) {
 
